@@ -1,0 +1,421 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+  <meta http-equiv="X-UA-Compatible" content="IE=9;text/html; charset=utf-8">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<!--<meta http-equiv="cache-control" content="no-cache"/>  -->
+<title>MovingKML</title>
+
+<script type="text/javascript" src="http://www.google.com/jsapi?&key=AIzaSyDVvQZDhBUb0BSIxQRNWXiPtpnbZGmBJ4Q"></script>
+
+<script type="text/javascript" src="addKmlFile.js"></script>
+<script type="text/javascript"
+	src="changeCoordinates.js"> </script>
+
+<script type="text/javascript"
+	src="changeInWeb.js"> </script>
+<script type="text/javascript"
+	src="earthSet.js"> </script>
+<script type="text/javascript"
+	src="screenChange.js"> </script>
+<script type="text/javascript"
+	src="ScreenOverlayControl.js"> </script>
+<script type="text/javascript"
+	src="slider.js"> </script>
+
+
+
+
+<script type="text/javascript">
+
+
+    
+	//google.load("earth", 1);
+        google.load("earth", "1", { 'language': 'en' });
+	
+	var ge;
+	var placemark;
+	var xmlrequestSendDir;
+	var xmlrequestSendKml;
+	var oldKmlObject;
+	var newKmlObject;
+	var initKmlObejct;
+	
+	var testSO;
+        var streamingPercent =0;
+        var statusID=0;
+        var processProgress=0;
+
+       // var waitSta1=0;
+	function init() {
+		google.earth.createInstance("map3d", initCB, failureCB);
+	}
+
+	function initCB(instance) {
+		ge = instance;
+		ge.getWindow().setVisibility(true);
+                ge.getNavigationControl().setVisibility(ge.VISIBILITY_AUTO);
+               // ge.getLayerRoot().enableLayerById(ge.LAYER_NAME , true);
+
+	
+		ge.getOptions().setGridVisibility(true);
+                ge.getOptions().setScaleLegendVisibility(true); 
+                ge.getOptions().setStatusBarVisibility(true);
+                
+                
+
+		addAltitudeControl();
+
+		addNewScreenContrl();
+               //控制屏幕叠加层半透明效果函数
+		focusedscreenctrl();
+		addScreenOverlayChange();
+		//google.earth.addEventListener(ge.getWindow(),'mousedown',altitudeBar_bg_click);
+
+
+ 
+
+      setInterval(function() 
+      {
+      //	var streamingPercent = ge.getStreamingPercent();
+     
+
+         if (statusID == 0)
+         {
+             streamingPercent = ge.getStreamingPercent();
+          }
+          else
+         {
+            streamingPercent = processProgress;
+          }
+
+      	var progressBar = document.getElementById('progress-bar');
+      	if (streamingPercent == 100) 
+	{
+        	// streaming complete, hide the progress bar
+        	progressBar.style.backgroundColor = '#0a0';
+        	progressBar.style.width = '800px';
+     	 } 
+	else 
+      	{
+        	// show the progress bar, max width is 800 as per the stylesheet
+        	progressBar.style.backgroundColor = '#00f';
+        	progressBar.style.width = (800 * streamingPercent / 100) + 'px';
+      	}
+      }, 100);
+
+
+	}
+	
+	function failureCB() {
+		
+	}
+
+      
+
+
+	google.setOnLoadCallback(init);
+
+	//移动当前目标的位置
+	function forChange(obj) {
+		var changeObjectString = oldKmlObject.getKml();//返回当前对象的kml字符串
+		var direction = obj.value;
+		//发送位置变换的请求
+		send(changeObjectString, direction);
+		
+	}
+
+	function hiddenKmlobject() {
+		ge.getFeatures().removeChild(oldKmlObject);
+	}
+
+	function showKmlobject() {
+		ge.getFeatures().appendChild(oldKmlObject);
+	}
+	function resetObject() {
+		ge.getFeatures().removeChild(oldKmlObject);
+		ge.getFeatures().appendChild(initKmlObject);
+		oldKmlObject = initKmlObject;
+}
+
+
+</script>
+</head>
+
+<body>
+
+	<div style="width: 1200px; height: 730px; margin: 0 auto;">
+ 
+		<div  style="width: 1200px; height: 85px; float: left;">
+			        <span font-color:white style="margin-left: 70px;">
+                                        <h3>
+					   <font>Moving KML geometry elements within Google Earth --- </font>  <a href="help/InstructionGuide.pdf" target="_blank"><font color="blue">Instruction Guide&nbsp&nbsp</font></a>
+				        </h3>
+                                 </span>
+                        
+
+                                   <label style="margin-left: 0px;"><font size="4px">URL:</font></label>
+			        
+                                 <input type="text" name="loadKml" id="loadKml" size="80"  value="http://www.sirrs.org/MoveKml/testkml/TestKmlFile.kml">
+
+			
+                                <button id="load-button" dojoType="dijit.form.Button" onclick="addFile();">Load KML/KMZ</button>
+
+                                <input type="checkbox" id="showGrid"
+				name="showGrid" style="margin-left: 20px;" checked=true onclick="showGrid();"><span><font
+						size="2px">Grids</font></span>
+		</div>
+
+                <span>
+
+		<div id="ui" style="position: relative;float: left;">
+ 	    	   <div id="extra-ui" style="position: relative;left: 0px; top: 150;float: left;">
+      			<style type="text/css">
+        		#progress-container {
+          		width: 800px;
+          		height: 15px;
+          		border: 1px dotted #ccc;
+        		}
+        
+       		 	#progress-bar {
+         	 	width: 0;
+          		height: 15px;
+       			 }
+      			    .style4
+                    {
+                        width: 200px;
+                    }
+      			    .style6
+                    {
+                        width: 65px;
+                    }
+      			    </style>
+     	       
+      	       		<div id="progress-container">
+                  		<div id="progress-bar">
+                 		 </div>
+               		</div>
+         
+          	 </div>
+               </div>
+               </span>
+
+
+		<!-- 
+		显示谷歌地球区域的部分
+	        -->
+		<div id="map3d"
+			style="width: 800px; height: 640px; margin-top: 10px; float: left; position: relative;">
+		</div>
+
+
+               
+
+		<form name="changeKmlObject" id="changeKmlObject">
+         
+			<div
+				style="width: 380px; height: 200px;float: left; margin-left:18px; margin-top: 30px;  position: relative; background-color: #F2F2F2;">
+				<!-- 改变高程 -->
+
+				
+                               
+                                 <table cellpadding="2" border="0" 
+                    style="margin-top: 0px; width: 380px;">
+
+                                        <thead>
+						<font size="4px">---  Vertical Displacement ---</font>
+                                        </thead>
+
+					 <tr>
+						<td rowspan="3" id="vertical" class="style4">
+                                                     <script language="JavaScript">
+							var A_TPL6v = {
+								'b_vertical' : true,
+								'b_watch' : true,
+								'n_controlWidth' : 58,
+								'n_controlHeight' : 163,
+								'n_sliderWidth' : 17,
+								'n_sliderHeight' : 9,
+								'n_pathLeft' : 19,
+								'n_pathTop' : -3,
+								'n_pathLength' : 160,
+								's_imgControl': 'Img/altitude_bg.png',
+								's_imgSlider' : 'Img/sldr5v_sl.gif',
+								'n_zIndex' : 1
+							}
+							var A_INIT6v = {
+								's_form' : 0,
+								's_name' : 'newchangeValue',
+								'n_minValue' : -1000,
+								'n_maxValue' : 1000,
+								'n_value' : 0,
+								'n_step' : 1
+							}
+				
+							new slider(A_INIT6v, A_TPL6v);
+
+						     </script>
+                                                  </td>
+
+
+						    <td rowspan="1" align="left" class="style6"><font size="2px">Max/Min:±</font></td><td>
+							    <input type="text" value="1000" id="range" name="range"  size="5" onblur="setV();" />
+							    <span style="font-size: 2px;"><font size="2px">m</font> </span>
+								
+						     </td>
+
+					   </tr>
+
+					<tr>
+						<td align="left" class="style6"><font size="2px">Current:&nbsp;&nbsp;</font> </td><td><input
+							type="text" id="newchangeValue" name="newchangeValue" size="5"
+							readonly="readonly" value="0" /><font size="2px"> m</font></td>
+                                        </tr>
+
+					<tr>
+						<td class="style6"><span><font size="2px">Total:</font></span> </td><td><input
+							type="text" id="v_total" name="v_total" size="5"
+							readonly="readonly" value="0" /><font size="2px"> m</font></td>
+					</tr>
+				</table>
+				
+				
+			</div>
+
+
+			<!-- 东西方向 -->
+
+			<div
+				style="width: 380px; height: 140px; float: left; margin-left: 18px; margin-top: 55px; position: relative; background-color: #F2F2F2;">
+				<table cellpadding="2" border="0" style="margin-top: 10px;">
+
+                                        <thead>
+						<font size="4px">--- West-East Displacement ---</font>
+                                        </thead>
+
+					<tr>
+						<td valign="middle" rowspan="3" id='WE' class="style4"><script language="JavaScript">
+							var A_TPL_n = {
+								'b_vertical' : false,
+								'b_watch' : true,
+								'n_controlWidth' : 163,
+								'n_controlHeight' : 43,
+								'n_sliderWidth' : 9,
+								'n_sliderHeight' : 17,
+								'n_pathLeft' : -2,
+								'n_pathTop' : 14,
+								'n_pathLength' : 160,
+								's_imgControl': 'Img/west2east.png',
+								's_imgSlider': 'Img/sldr5h_sl.gif',
+								'n_zIndex' : 1
+							}
+
+							var A_INIT_n = {
+								's_form' : 0,
+								's_name' : 'WEChangeValue',
+								'n_minValue' : -1000,
+								'n_maxValue' : 1000,
+								'n_value' : 0,
+								'n_step' : 1
+							}
+
+							new slider(A_TPL_n, A_INIT_n);
+						</script></td>
+
+						<td colspan="1" class="style6"><span><font size="2px">Max/Min:±</font></span></td><td>
+							<input type="text" value="1000" id="WEMax" name="WEMax" size="5"
+							onblur="setH_WE();" /><font size="2px"> m</font></td>
+
+					</tr>
+
+					<tr>
+						<td align="left" class="style6"><span><font size="2px">Current:&nbsp;&nbsp;</font></span> </td><td><input
+							type="text" name="WEChangeValue" id="WEChangeValue" size="5"
+							readonly="readonly" value="0" /><font size="2px">
+									m </font>
+						</td>
+					</tr>
+					<tr>
+						<td class="style6"><span><font size="2px">Total:</font></span></td><td>
+							<input type="text" name="we_total" id="we_total" size="5"
+							readonly="readonly" value="0" /> <font size="2px">
+									m </font>
+						</td>
+					</tr>
+				</table>
+				
+				
+				
+			</div>
+
+
+
+			<div
+				style="width: 380px; height: 140px; float: left; margin-left: 18px; margin-top: 55px; position: relative; background-color: #F2F2F2;">
+				<table cellpadding="2" border="0">
+					
+                                               <thead>
+						<font size="4px">--- South-North Displacement ---</font>
+                                                </thead>
+                        <tr>
+						<td valign="middle" rowspan="3" id="NS" class="style4"><script language="JavaScript">
+							var A_TPL_s = {
+								'b_vertical' : false,
+								'b_watch' : true,
+								'n_controlWidth' : 163,
+								'n_controlHeight' : 43,
+								'n_sliderWidth' : 9,
+								'n_sliderHeight' : 17,
+								'n_pathLeft' : -2,
+								'n_pathTop' : 14,
+								'n_pathLength' : 160,
+								's_imgControl' : 'Img/south2north.png',
+								's_imgSlider': 'Img/sldr5h_s2.gif',
+								'n_zIndex' : 1
+							}
+
+							var A_INIT_s = {
+								's_form' : 0,
+								's_name' : 'SNChangeValue',
+								'n_minValue' : -1000,
+								'n_maxValue' : 1000,
+								'n_value' : 0,
+								'n_step' : 1
+							}
+
+							new slider(A_TPL_s, A_INIT_s);
+						</script>
+                                                </td>
+						
+						<td colspan="1" class="style6"><span><font size="2px">Max/Min:±</font></span></td><td>
+							<input type="text" value="1000" id="SNMax" name="SNMax" size="5"
+							onblur="setH_SN();" /> <font size="2px">m</font></td>
+
+
+					</tr>
+
+					<tr>
+
+						<td class="style6"><span><font size="2px">Current:&nbsp;&nbsp;</font></span></td><td> <input
+							type="text" name="SNChangeValue" id="SNChangeValue" size="5"
+							readonly="readonly" value="0" /> <font size="2px">
+									m </font>
+						</td>
+					</tr>
+					<tr>
+
+						<td class="style6"><span><font size="2px">Total:</font></span></td><td>
+							<input type="text" name="sn_total" id="sn_total" size="5"
+							readonly="readonly" value="0" />  <font size="2px">
+									m </font></td>
+					</tr>
+				</table>
+				
+			</div>
+
+		</form>
+	</div>
+</body>
+</html>
